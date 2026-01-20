@@ -62,17 +62,18 @@ if __name__ == '__main__':
                     options.get('connection_child', '') == cmd_args.connection_child
                 ):
                     if section.startswith('spd_'):
-                        policy = {
+                        source = options.get('source', '').strip()
+                        destination = options.get('destination', '').strip()
+                        if destination == '':
+                            destination = os.environ.get('PLUTO_PEER_CLIENT', '')
+                        spds.append({
+                            'source': source,
                             'reqid': cmd_args.reqid,
                             'local' : cmd_args.local,
                             'remote' : cmd_args.remote,
-                            'destination': os.environ.get('PLUTO_PEER_CLIENT')
-                        }
-                        for opt, value in options.items():
-                            value = value.strip()
-                            if value != '':
-                                policy[opt] = value
-                        spds.append(policy)
+                            'destination': destination,
+                            'protocol': options.get('protocol', '').strip()
+                        })
                     elif section.startswith('vti_'):
                         with_vti = True
 
