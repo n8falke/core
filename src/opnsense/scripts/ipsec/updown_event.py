@@ -57,21 +57,22 @@ if __name__ == '__main__':
             cnf.read(events_filename)
             spds = []
             with_vti = False
-            for section in cnf.sections():
-                if (cnf.has_option(section, 'reqid') and cnf.get(section, 'reqid') == cmd_args.reqid) or (
-                    cnf.has_option(section, 'connection_child') and
-                    cnf.get(section, 'connection_child') == cmd_args.connection_child
+            for section, options in cnf.items():
+                if (options.get('reqid', '') == cmd_args.reqid or
+                    options.get('connection_child', '') == cmd_args.connection_child
                 ):
                     if section.startswith('spd_'):
-                        spds.append({
+                        policy = {
                             'reqid': cmd_args.reqid,
                             'local' : cmd_args.local,
                             'remote' : cmd_args.remote,
                             'destination': os.environ.get('PLUTO_PEER_CLIENT')
-                        })
-                        for opt in cnf.options(section):
-                            if cnf.get(section, opt).strip() != '':
-                                spds[-1][opt] = cnf.get(section, opt).strip()
+                        }
+                        for opt, value in options.items():
+                            value = value.strip()
+                            if value != '':
+                                policy[opt] = value
+                        spds.append(policy)
                     elif section.startswith('vti_'):
                         with_vti = True
 
