@@ -57,6 +57,7 @@ if __name__ == '__main__':
             cnf = ConfigParser()
             cnf.read(events_filename)
             spds = []
+            spd_set = set() # tuple(source, destination)
             with_vti = False
             for section, options in cnf.items():
                 if (options.get('reqid', '') == cmd_args.reqid or
@@ -80,6 +81,7 @@ if __name__ == '__main__':
                                 'destination': destination,
                                 'protocol': options.get('protocol', '').strip()
                             })
+                            spd_set.add((source, destination))
                     elif section.startswith('vti_'):
                         with_vti = True
 
@@ -93,16 +95,12 @@ if __name__ == '__main__':
             cur_spds = list_spds(automatic=False)
             set_key = [] # list of setkey actions to run
             for spd in cur_spds:
-                policy_found = False
                 # match requid only if ipproto matches
                 reqid_match = spd['reqid'] == cmd_args.reqid and (ipproto == '6') == (':' in spd['src'])
-                for mspd in spds:
-                    if mspd['source'] == spd['src'] and mspd['destination'] == spd['dst']:
-                        policy_found = True
-                if policy_found or reqid_match:
+                if reqid_match or (spd['src'], spd['dst']) in spd_set:
                     spd_del_cmd = 'spddelete -n %(src)s %(dst)s any -P %(direction)s;' % spd
                     set_key.append(spd_del_cmd)
-                    reason = 'policy found' if policy_found else 'reqid match'
+                    reason = 'reqid match' if reqid_match else 'policy found'
                     syslog.syslog(
                         syslog.LOG_NOTICE,
                         '[UPDOWN] <%s> delete policy: %s (reason: %s)' % (cmd_args.connection_child, spd_del_cmd[10:], reason)
