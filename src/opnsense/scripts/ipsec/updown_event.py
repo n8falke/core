@@ -91,12 +91,12 @@ if __name__ == '__main__':
                     if mspd['source'] == spd['src'] and mspd['destination'] == spd['dst']:
                         policy_found = True
                 if policy_found or reqid_match:
-                    spd_del_cmd = 'spddelete -n %(src)s %(dst)s any -P %(direction)s;'
-                    set_key.append(spd_del_cmd % spd)
+                    spd_del_cmd = 'spddelete -n %(src)s %(dst)s any -P %(direction)s;' % spd
+                    set_key.append(spd_del_cmd)
                     reason = 'policy found' if policy_found else 'reqid match'
                     syslog.syslog(
                         syslog.LOG_NOTICE,
-                        '[UPDOWN] <%s> delete policy: %s (reason: %s)' % (cmd_args.connection_child, (spd_del_cmd % spd)[10:], reason)
+                        '[UPDOWN] <%s> delete policy: %s (reason: %s)' % (cmd_args.connection_child, spd_del_cmd[10:], reason)
                     )
 
             for spd in spds:
