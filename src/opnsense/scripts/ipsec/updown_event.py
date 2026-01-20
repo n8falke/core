@@ -56,7 +56,7 @@ if __name__ == '__main__':
             cnf = ConfigParser()
             cnf.read(events_filename)
             spds = []
-            vtis = []
+            with_vti = False
             for section in cnf.sections():
                 if (cnf.has_option(section, 'reqid') and cnf.get(section, 'reqid') == cmd_args.reqid) or (
                     cnf.has_option(section, 'connection_child') and
@@ -73,20 +73,13 @@ if __name__ == '__main__':
                             if cnf.get(section, opt).strip() != '':
                                 spds[-1][opt] = cnf.get(section, opt).strip()
                     elif section.startswith('vti_'):
-                        vtis.append({
-                            'reqid': cmd_args.reqid,
-                            'local' : cmd_args.local,
-                            'remote' : cmd_args.remote
-                        })
+                        with_vti = True
 
-            for vti in vtis:
-                if None in vti.values():
-                    # incomplete, skip
-                    continue
-                intf = 'ipsec%s' % vti['reqid']
-                proto = 'inet6' if vti['local'].find(':') > -1  else 'inet'
-                subprocess.run(['/sbin/ifconfig', intf, 'reqid', vti['reqid']])
-                subprocess.run(['/sbin/ifconfig', intf, proto, 'tunnel', vti['local'], vti['remote']])
+            if with_vti:
+                intf = 'ipsec%s' % cmd_args.reqid
+                proto = 'inet6' if ':' in cmd_args.local else 'inet'
+                subprocess.run(['/sbin/ifconfig', intf, 'reqid', cmd_args.reqid])
+                subprocess.run(['/sbin/ifconfig', intf, proto, 'tunnel', cmd_args.local, cmd_args.remote])
 
             # (re)apply manual policies if specified
             cur_spds = list_spds(automatic=False)
