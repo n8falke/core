@@ -53,6 +53,7 @@ if __name__ == '__main__':
         syslog.openlog('charon', facility=syslog.LOG_LOCAL4)
         syslog.syslog(syslog.LOG_NOTICE, '[UPDOWN] <%s> received %s event for reqid %s' % (cmd_args.connection_child, cmd_args.action, cmd_args.reqid))
         if os.path.exists(events_filename):
+            ipproto, host_suffix = ('4', '/32') if cmd_args.action[-1] != '6' else ('6', '/128')
             cnf = ConfigParser()
             cnf.read(events_filename)
             spds = []
@@ -62,33 +63,39 @@ if __name__ == '__main__':
                     options.get('connection_child', '') == cmd_args.connection_child
                 ):
                     if section.startswith('spd_'):
-                        source = options.get('source', '').strip()
-                        destination = options.get('destination', '').strip()
-                        if destination == '':
-                            destination = os.environ.get('PLUTO_PEER_CLIENT', '')
-                        spds.append({
-                            'source': source,
-                            'reqid': cmd_args.reqid,
-                            'local' : cmd_args.local,
-                            'remote' : cmd_args.remote,
-                            'destination': destination,
-                            'protocol': options.get('protocol', '').strip()
-                        })
+                        # remove prefix length in case of host (setkey returns host only)
+                        source = options.get('source', '').strip().removesuffix(host_suffix)
+                        # continue only if ipproto matches spd in conf to up-event
+                        if (ipproto == '6') == (':' in source):
+                            destination = options.get('destination', '').strip()
+                            if destination == '':
+                                destination = os.environ.get('PLUTO_PEER_CLIENT', '')
+                            destination = destination.removesuffix(host_suffix)
+                            spds.append({
+                                'ipproto': ipproto,
+                                'source': source,
+                                'reqid': cmd_args.reqid,
+                                'local' : cmd_args.local,
+                                'remote' : cmd_args.remote,
+                                'destination': destination,
+                                'protocol': options.get('protocol', '').strip()
+                            })
                     elif section.startswith('vti_'):
                         with_vti = True
 
             if with_vti:
                 intf = 'ipsec%s' % cmd_args.reqid
-                proto = 'inet6' if ':' in cmd_args.local else 'inet'
+                proto = 'inet6' if ipproto == '6' else 'inet'
                 subprocess.run(['/sbin/ifconfig', intf, 'reqid', cmd_args.reqid])
                 subprocess.run(['/sbin/ifconfig', intf, proto, 'tunnel', cmd_args.local, cmd_args.remote])
 
             # (re)apply manual policies if specified
             cur_spds = list_spds(automatic=False)
-            set_key = []
+            set_key = [] # list of setkey actions to run
             for spd in cur_spds:
                 policy_found = False
-                reqid_match = spd['reqid'] == cmd_args.reqid
+                # match requid only if ipproto matches
+                reqid_match = spd['reqid'] == cmd_args.reqid and (ipproto == '6') == (':' in spd['src'])
                 for mspd in spds:
                     if mspd['source'] == spd['src'] and mspd['destination'] == spd['dst']:
                         policy_found = True
@@ -105,7 +112,6 @@ if __name__ == '__main__':
                 if None in spd.values():
                     # incomplete, skip
                     continue
-                spd['ipproto'] = '4' if spd.get('source', '').find(':') == -1 else '6'
                 syslog.syslog(
                     syslog.LOG_NOTICE,
                     '[UPDOWN] <%s> add manual policy: %s' % (cmd_args.connection_child, (spd_add_cmd % spd)[7:])
