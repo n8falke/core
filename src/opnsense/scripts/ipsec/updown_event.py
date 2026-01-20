@@ -31,7 +31,6 @@
 import os
 import subprocess
 import argparse
-import tempfile
 import syslog
 from configparser import ConfigParser
 from lib import list_spds
@@ -118,14 +117,10 @@ if __name__ == '__main__':
                 )
                 set_key.append(spd_add_cmd % spd)
             if len(set_key) > 0:
-                f = tempfile.NamedTemporaryFile(mode='wt', delete=False)
-                f.write('\n'.join(set_key))
-                f.close()
                 try:
-                    subprocess.run(['/sbin/setkey', '-f', f.name], capture_output=True, text=True, check=True)
+                    subprocess.run(['/sbin/setkey', '-c'], input='\n'.join(set_key), capture_output=True, text=True, check=True)
                 except subprocess.CalledProcessError as e:
                     syslog.syslog(
                         syslog.LOG_ERR,
                         '[UPDOWN] <%s> setkey failed: stdout: (%s) stderr: (%s)' % (cmd_args.connection_child, e.stdout, e.stderr)
                     )
-                os.unlink(f.name)
