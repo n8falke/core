@@ -37,7 +37,7 @@ from lib import list_spds
 
 events_filename = '/usr/local/etc/swanctl/reqid_events.conf'
 
-spd_add_cmd = 'spdadd -%(ipproto)s %(source)s %(destination)s any ' \
+spd_add_cmd = 'spdadd -n %(source)s %(destination)s any ' \
     '-P out ipsec %(protocol)s/tunnel/%(local)s-%(remote)s/unique:%(reqid)s;'
 
 if __name__ == '__main__':
@@ -73,7 +73,6 @@ if __name__ == '__main__':
                                 destination = os.environ.get('PLUTO_PEER_CLIENT', '')
                             destination = destination.removesuffix(host_suffix)
                             spds.append({
-                                'ipproto': ipproto,
                                 'source': source,
                                 'reqid': cmd_args.reqid,
                                 'local' : cmd_args.local,
